@@ -1,0 +1,6 @@
+
+*.ilk
+release/
+debug/
+*.user
+.vs/
