@@ -1,9 +1,17 @@
 #include <windows.h>
 #include <stdio.h>
 #include <tchar.h>
-#include <psapi.h>
+#include <vector>
 
 static TCHAR title[2048];
+
+static std::vector<HWND> windows;
+
+static BOOL CALLBACK enumWindowCallback(HWND hWnd, LPARAM lparam)
+{
+    windows.emplace_back(hWnd);
+    return TRUE;
+}
 
 int main()
 {
@@ -28,14 +36,20 @@ int main()
     const RECT& rect = mi.rcWork;
     printf("Active monitor rect: %d,%d to %d,%d\n", rect.left, rect.top, rect.right, rect.bottom);
 
-    int offset = 0;
-    HWND hCurWnd = NULL;
-    for(;;)
+    if (!EnumWindows(enumWindowCallback, NULL))
     {
-        hCurWnd = FindWindowEx(NULL, hCurWnd, NULL, NULL);
+        printf("Enum windows failed\n");
+        return -3;
+    }
+
+    printf("%d windows found\n", (int)windows.size());
+    int offset = 0;
+    for(size_t i = 0; i < windows.size(); i++)
+    {
+        HWND hCurWnd = windows[i];
         if (!hCurWnd)
         {
-            break;
+            continue;
         }
         memset(&title[0], 0, sizeof(title));
         int num = GetWindowText(hCurWnd, title, 2047);
@@ -69,16 +83,6 @@ int main()
             continue;
         }
 
-        RECT clipRect;
-        if (IntersectRect(&clipRect, &wndRect, &rect))
-        {
-            if (clipRect.right > clipRect.left || clipRect.bottom > clipRect.top)
-            {
-                // window already visible
-                continue;
-            }
-        }
-
         int width = wndRect.right - wndRect.left;
         int height = wndRect.bottom - wndRect.top;
 
@@ -89,6 +93,19 @@ int main()
 
         printf("%S, %X\n", title, style);
         printf("  - Window rect: %d,%d to %d,%d\n", wndRect.left, wndRect.top, wndRect.right, wndRect.bottom);
+
+/*
+        RECT clipRect;
+        if (IntersectRect(&clipRect, &wndRect, &rect))
+        {
+            if (clipRect.right > clipRect.left || clipRect.bottom > clipRect.top)
+            {
+                // window already visible
+                continue;
+            }
+        }
+*/
+
 
         if ((style & WS_POPUP) != 0)
         {
